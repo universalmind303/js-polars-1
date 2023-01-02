@@ -2,6 +2,8 @@ use polars::lazy::dsl;
 use polars::prelude::*;
 use wasm_bindgen::prelude::*;
 
+use crate::JsResult;
+
 use super::expr::JsExpr;
 
 #[wasm_bindgen]
@@ -191,4 +193,27 @@ pub fn last() -> JsExpr {
 pub fn cols(names: JsValue) -> JsExpr {
     let names: Vec<String> = serde_wasm_bindgen::from_value(names).unwrap();
     dsl::cols(names).into()
+}
+
+#[wasm_bindgen]
+pub fn lit(value: JsValue) -> JsResult<JsExpr> {
+    use wasm_bindgen::JsCast;
+    if value.is_bigint() {
+        let value: js_sys::BigInt = value.dyn_into().unwrap();
+        let value: f64 = value.as_f64().unwrap();
+        return Ok(value.lit().into());
+    } else if value.is_null() | value.is_undefined() {
+        Ok(dsl::lit(Null {}).into())
+    } else if value.is_string() {
+        let value: String = value.as_string().unwrap();
+        return Ok(value.lit().into());
+    } else if let Some(bool) = value.as_bool() {
+        return Ok(bool.lit().into());
+    } else if let Some(num) = value.as_f64() {
+        return Ok(num.lit().into());
+    } else if js_sys::Array::is_array(&value) {
+        todo!("array")
+    } else {
+        todo!("others")
+    }
 }
